@@ -9,7 +9,37 @@
 *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:#fff5e1;color:#69462d;font-family:system-ui,sans-serif;overscroll-behavior:none}main{text-align:center;padding:24px;width:100%;max-width:480px}h1{font-size:28px;margin:0 0 12px;letter-spacing:.12em}p{margin:0;color:#81674f;font-size:14px}button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}#spin{display:grid;place-items:center;border:0;background:none;margin:25px auto;width:220px;height:220px;border-radius:50%;user-select:none}#poop{display:block;font-size:136px;line-height:1;transform:rotate(0deg);transition:transform .48s cubic-bezier(.18,.8,.25,1);will-change:transform}#spin:focus-visible,#reset:focus-visible{outline:3px solid #ac7230;outline-offset:4px}#count{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}#reset{margin-top:24px;padding:10px 24px;border:1px solid #dec5a7;border-radius:99px;background:transparent;color:#634329}#reset:hover{background:#f6e7d1}footer{margin-top:24px;font-size:10px;letter-spacing:.12em;color:#997c61}@media(prefers-reduced-motion:reduce){#poop{transition:none}}
 </style>
 </head>
-<body><main><h1>UNKO SPIN</h1><p>回すことに、理由はいらない。</p><button id="spin" aria-label="うんこを回転させる"><span id="poop" aria-hidden="true">💩</span></button><p>TOTAL SPINS</p><div id="count" aria-live="polite">0</div><button id="reset">リセット</button><footer>UNKO SPIN v1.0</footer></main>
+<body><main><h1>UNKO SPIN</h1><p>回すことに、理由はいらない。</p><button id="spin" aria-label="うんこを回転させる"><span id="poop" aria-hidden="true">💩</span></button><p>TOTAL SPINS</p><div id="count" aria-live="polite">0</div><button id="reset">リセット</button><footer>UNKO SPIN v1.1</footer></main>
 <script>
-let count=0;const poop=document.getElementById('poop'),counter=document.getElementById('count');document.getElementById('spin').addEventListener('click',()=>{count++;poop.style.transform=`rotate(${count*360}deg)`;counter.textContent=count;});document.getElementById('reset').addEventListener('click',()=>{count=0;poop.style.transition='none';poop.style.transform='rotate(0deg)';counter.textContent='0';void poop.offsetWidth;poop.style.transition='';});
+let audioContext;
+function playBuri(){
+  try {
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(!Audio)return;
+    if(!audioContext)audioContext=new Audio();
+    const ctx=audioContext;
+    const play=()=>{
+      const t=ctx.currentTime,d=.32;
+      const buffer=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*d),ctx.sampleRate);
+      const samples=buffer.getChannelData(0);
+      let phase=0,rough=0;
+      for(let i=0;i<samples.length;i++){
+        const s=i/ctx.sampleRate;
+        phase+=2*Math.PI*(105-48*s/d+10*Math.sin(2*Math.PI*24*s))/ctx.sampleRate;
+        rough=.70*rough+.30*(Math.random()*2-1);
+        const buzz=Math.tanh(3*Math.sin(phase)+1.2*rough);
+        const env=Math.min(1,s/.018)*Math.pow(Math.max(0,1-s/d),.65);
+        samples[i]=.48*env*(.7*buzz+.3*rough)*(.72+.28*Math.sin(2*Math.PI*29*s));
+      }
+      const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+      src.buffer=buffer;filter.type='lowpass';filter.frequency.value=1250;filter.Q.value=.8;
+      gain.gain.setValueAtTime(.65,t);gain.gain.exponentialRampToValueAtTime(.001,t+d);
+      src.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+      src.onended=()=>{src.disconnect();filter.disconnect();gain.disconnect();};
+      src.start(t);
+    };
+    if(ctx.state!=='running')ctx.resume().then(play).catch(()=>{});else play();
+  }catch(e){/* Rotation continues even when audio is unavailable. */}
+}
+let count=0;const poop=document.getElementById('poop'),counter=document.getElementById('count');document.getElementById('spin').addEventListener('click',()=>{count++;poop.style.transform=`rotate(${count*360}deg)`;counter.textContent=count;if(count%50===0)playBuri();});document.getElementById('reset').addEventListener('click',()=>{count=0;poop.style.transition='none';poop.style.transform='rotate(0deg)';counter.textContent='0';void poop.offsetWidth;poop.style.transition='';});
 </script></body></html>
